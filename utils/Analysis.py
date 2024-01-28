@@ -14,7 +14,7 @@ with open(particulars_filter_map_path) as f:
 
 
 def filter_particulars(df, filter_str, column="PARTICULARS"):
-    if filter_str is "None":
+    if filter_str == "None":
         # return entries that doesn't match any of those particulars_filter_map
         for key in particulars_filter_map:
             if not particulars_filter_map[key]:
@@ -50,6 +50,7 @@ def get_portfolio(mergedDF):
         "Indian_Bank_FD",
         "Stocks",
         "Mutual_Fund",
+        "Bonds",
     ]
     statement_names = ["Indian Bank", "ICICI Bank"]
     portfolio = []
@@ -67,6 +68,11 @@ def get_portfolio(mergedDF):
         filter_particulars(mergedDF, particulars_filter_map["mutual_fund"])
     )
     portfolio.append(mutual_fund)
+    bonds = -__get_net_amount(
+        filter_particulars(mergedDF, particulars_filter_map["bonds"])
+    )
+    portfolio.append(bonds)
+
     return [portfolio, portfolio_labels]
 
 
