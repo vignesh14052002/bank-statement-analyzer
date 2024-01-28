@@ -1,12 +1,19 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
-from utils.Analysis import get_portfolio
+from utils.Analysis import get_portfolio, particulars_filter_map
+from dotenv import find_dotenv, load_dotenv
+
+load_dotenv(find_dotenv(), override=True)
 
 
 def merge_dataframes(df_list):
     df = pd.concat(df_list, ignore_index=True)
     df = df.sort_values(by="DATE")
+    df["WITHDRAWALS"] = df["WITHDRAWALS"].astype(
+        float
+    )  # Convert "withdrawals" column to float
+    df["DEPOSIT"] = df["DEPOSIT"].astype(float)  # Convert "deposit" column to float
     df["NET_AMOUNT"] = -df["WITHDRAWALS"] + df["DEPOSIT"]
     # Start and initial Balance
     df["NET_AMOUNT"].iloc[0] += df["BALANCE"].iloc[0]
@@ -17,15 +24,6 @@ def merge_dataframes(df_list):
 
 
 def plot_balance_trend(df):
-    """
-    Plots the balance trend from a merged DataFrame with 'DATE', 'BALANCE', and 'STATEMENT_TYPE' columns.
-
-    Args:
-        df (DataFrame): Merged DataFrame with 'DATE', 'BALANCE', and 'STATEMENT_TYPE' columns.
-
-    Returns:
-        None
-    """
     df["DATE"] = pd.to_datetime(df["DATE"])
 
     # Sort the DataFrame by 'DATE'
@@ -37,17 +35,50 @@ def plot_balance_trend(df):
     for statement_type in statement_types:
         statement_df = df[df["STATEMENT_TYPE"] == statement_type]
         statement_df["BALANCE"] = statement_df["NET_AMOUNT"].cumsum()
-        plt.plot(statement_df["DATE"], statement_df["BALANCE"], label=statement_type)
+        plt.plot(
+            statement_df["DATE"],
+            statement_df["BALANCE"],
+            label=_get_balance_trend_plot_label(statement_df, statement_type),
+        )
 
-    # Plot the total balance
-    plt.plot(df["DATE"], df["BALANCE"], label="Total Balance", color="black")
+    ignored_filters = ["angel_one", "mutual_fund", "FD", "bonds"]
+    filter_str = "|".join(map(lambda x: particulars_filter_map[x], ignored_filters))
+    filtered_df = df[
+        ~df["PARTICULARS"].str.contains(filter_str, regex=True, case=False)
+    ]
+    for filter in ignored_filters:
+        _df = df[
+            df["PARTICULARS"].str.contains(
+                particulars_filter_map[filter], regex=True, case=False
+            )
+        ]
+        _df["BALANCE"] = -_df["NET_AMOUNT"].cumsum()
+        plt.plot(
+            _df["DATE"],
+            _df["BALANCE"],
+            label=_get_balance_trend_plot_label(_df, filter),
+        )
+
+    filtered_df["BALANCE"] = filtered_df["NET_AMOUNT"].cumsum()
+    plt.plot(
+        filtered_df["DATE"],
+        filtered_df["BALANCE"],
+        label=_get_balance_trend_plot_label(filtered_df, "Net Worth"),
+        color="black",
+    )
     plt.xlabel("Date")
-    plt.ylabel("Balance")
-    plt.title("Date vs. Balance")
+    plt.ylabel("Money (in Rupees)")
+    plt.title("Date vs. Money (in Rupees)")
     plt.grid(True)
     plt.legend()
     handle_sensitive_data_in_plot()
     return plt.gcf()
+
+
+def _get_balance_trend_plot_label(df, label):
+    if os.environ.get("DISPLAY_SENSITIVE_DATA") == "true":
+        return f"{label.ljust(10)} : {int(df['BALANCE'].iloc[-1])}"
+    return label
 
 
 def plot_monthly_spending(df):
@@ -76,9 +107,9 @@ def plot_portfolio(mergedDF):
 
 
 def handle_sensitive_data_in_plot(plot_type="bar"):
-    if os.environ.get("DISPLAY_SENSITIVE_DATA") == "true":
+    if os.getenv("DISPLAY_SENSITIVE_DATA") == "true":
         return
-    # Hide sensitive data
+    # Hide sensitive data.
     plt.yticks([])
     if plot_type == "pie":
         plt.legend([])
