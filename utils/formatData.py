@@ -45,7 +45,7 @@ class DataFormatter:
         if "Date" in self.df.columns:
             self.df["Date"] = pd.to_datetime(self.df["Date"], format="%d-%m-%Y")
         elif "DATE" in self.df.columns:
-            self.df["DATE"] = pd.to_datetime(self.df["DATE"], format="%d-%m-%Y")
+            self.df["Date"] = pd.to_datetime(self.df["DATE"], format="%d-%m-%Y")
         # Sort DataFrame by date in ascending order
         self.df = self.df.sort_values(by="Date")
         if self.df_type == "ICICI_Bank_Savings":
@@ -72,6 +72,17 @@ class DataFormatter:
                 self.df["NET_AMOUNT"] < 0, 0, self.df["NET_AMOUNT"]
             )
             df["BALANCE"] = self.df["NET_AMOUNT"].cumsum()
+            return df
+        elif self.df_type == "IndianBank_Savings":
+            df["DATE"] = self.df["Date"]
+            df["PARTICULARS"] = self.df["PARTICULARS"]
+            df["WITHDRAWALS"] = self.df["WITHDRAWALS"].apply(
+                lambda x: float(x.replace("-", "0"))
+            )
+            df["DEPOSIT"] = self.df["DEPOSIT"].apply(
+                lambda x: float(x.replace("-", "0"))
+            )
+            df["BALANCE"] = self.df["BALANCE"]
             return df
 
     def check_missing_columns(self):
